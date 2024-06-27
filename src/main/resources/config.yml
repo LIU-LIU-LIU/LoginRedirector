@@ -1,0 +1,21 @@
+#服务器名是在velocity配置文件中的名字。
+#离线玩家需要进入的服务器名
+offlineServer: main
+
+# 在线玩家需要进入的服务器名
+onlineServer: login
+
+#豁免IP列表，例如Geyser的IP
+exemptIPs:
+  - 127.0.0.1
+  - 192.168.1.1
+
+# 需要禁用的命令列表
+disabledCommands:
+  - server
+  - find
+
+#禁用命令需要作用的服务器列表
+disabledCommandsServers:
+  - main
+  - lobby
