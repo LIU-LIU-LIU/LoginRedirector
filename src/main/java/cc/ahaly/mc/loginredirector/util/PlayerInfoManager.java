@@ -20,16 +20,22 @@ public class PlayerInfoManager {
     public PlayerInfoManager(Path dataDirectory) {
         this.gson = new Gson();
         this.filePath = dataDirectory.resolve("players.json");
-        this.players = loadPlayers();
+        this.players = new ArrayList<>();
+        loadPlayers();
     }
 
-    private List<PlayerInfo> loadPlayers() {
+    private void loadPlayers() {
         try (JsonReader reader = new JsonReader(new FileReader(filePath.toFile()))) {
             Type playerListType = new TypeToken<ArrayList<PlayerInfo>>(){}.getType();
-            return gson.fromJson(reader, playerListType);
+            List<PlayerInfo> loadedPlayers = gson.fromJson(reader, playerListType);
+            if (loadedPlayers != null) {
+                this.players = loadedPlayers;
+            } else {
+                this.players = new ArrayList<>();
+            }
         } catch (IOException e) {
             e.printStackTrace();
-            return new ArrayList<>();
+            this.players = new ArrayList<>();
         }
     }
 
@@ -50,7 +56,7 @@ public class PlayerInfoManager {
         return this.players;
     }
 
-    //查询json文件中是否存在该玩家
+    // 查询 JSON 文件中是否存在该玩家
     public boolean isPlayerExists(String name, String uuid) {
         return players.stream()
                 .anyMatch(player -> player.getName().equals(name) && player.getUuid().equals(uuid));
@@ -71,5 +77,4 @@ public class PlayerInfoManager {
             return false;
         }
     }
-
 }

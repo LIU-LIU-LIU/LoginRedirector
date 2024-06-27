@@ -37,9 +37,7 @@ public class LoginRedirector {
     private final ProxyServer server;
     private final Logger logger;
     private final OkHttpClient httpClient = new OkHttpClient();
-    private final Path dataDirectory;
-    private PlayerInfoManager playerInfoManager;
-    private ConfigManager configManager;
+    private final PlayerInfoManager playerInfoManager;
     //prelogin事件里用于标记玩家是否正版的全局变量给login事件
     private boolean isPremium = false;
     //用于标记请求mojang异常次数，如果有俩次则暂时拒绝登录
@@ -49,10 +47,9 @@ public class LoginRedirector {
     public LoginRedirector(ProxyServer server, Logger logger, @DataDirectory Path dataDirectory) {
         this.server = server;
         this.logger = logger;
-        this.dataDirectory = dataDirectory;
 
         // Initialize ConfigManager
-        this.configManager = new ConfigManager(dataDirectory, logger);
+        ConfigManager configManager = new ConfigManager(dataDirectory, logger);
 
         // Initialize PlayerInfoManager
         this.playerInfoManager = new PlayerInfoManager(dataDirectory);
@@ -125,7 +122,7 @@ public class LoginRedirector {
         // 检查玩家是否通过在线模式登录
         if (isPremium) {
             logger.info("Player " + player.getUsername() + " is online mode, redirecting to login server.");
-            player.createConnectionRequest(server.getServer("login").get()).fireAndForget();
+//            player.createConnectionRequest(server.getServer("login").get()).fireAndForget();
         } else {
             logger.info("Player " + player.getUsername() + " is offline mode, redirecting to main server.");
             player.createConnectionRequest(server.getServer("main").get()).fireAndForget();

@@ -1,65 +1,70 @@
 package cc.ahaly.mc.loginredirector.util;
 
+import com.google.common.io.ByteStreams;
 import com.velocitypowered.api.plugin.annotation.DataDirectory;
-import java.io.File;
-import java.io.FileOutputStream;
+import org.yaml.snakeyaml.DumperOptions;
+import org.yaml.snakeyaml.Yaml;
+import org.yaml.snakeyaml.constructor.Constructor;
+
 import java.io.IOException;
 import java.io.InputStream;
-import java.lang.module.Configuration;
-import java.nio.file.Path;
+import java.io.OutputStream;
+import java.nio.file.*;
+import java.util.Map;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class ConfigManager {
 
     private final Path dataDirectory;
     private final Logger logger;
-    private Configuration config;
+    private Map<String, Object> config;
 
     public ConfigManager(@DataDirectory Path dataDirectory, Logger logger) {
         this.dataDirectory = dataDirectory;
         this.logger = logger;
 
         try {
+            copyDefaultResources();
             this.config = loadConfig();
         } catch (IOException e) {
-            logger.severe("Failed to initialize ConfigManager: " + e.getMessage());
+            logger.log(Level.SEVERE, "Failed to initialize ConfigManager", e);
         }
     }
 
-    private Configuration loadConfig() throws IOException {
-        File dataFolder = dataDirectory.toFile();
-
-        if (!dataFolder.exists()) {
-            if (!dataFolder.mkdirs()) {
-                logger.severe("Failed to create data folder: " + dataFolder.getAbsolutePath());
-                throw new IOException("Failed to create data folder");
-            }
+    private void copyDefaultResources() throws IOException {
+        if (Files.notExists(dataDirectory)) {
+            Files.createDirectories(dataDirectory);
         }
 
-        File configFile = new File(dataFolder, "config.yml");
+        // Define the resource files to copy
+        String[] resourceFiles = {"config.yml", "players.json"};
 
-        if (!configFile.exists()) {
-            try (InputStream inputStream = getClass().getClassLoader().getResourceAsStream("config.yml");
-                 FileOutputStream outputStream = new FileOutputStream(configFile)) {
-                if (inputStream == null) {
-                    logger.severe("Default config file not found in JAR: config.yml");
-                    throw new IOException("Default config file not found in JAR");
+        for (String resourceFile : resourceFiles) {
+            Path outFile = dataDirectory.resolve(resourceFile);
+            if (Files.notExists(outFile)) {
+                try (InputStream in = getClass().getClassLoader().getResourceAsStream(resourceFile);
+                     OutputStream out = Files.newOutputStream(outFile)) {
+                    if (in == null) {
+                        logger.warning("Resource not found: " + resourceFile);
+                        continue;
+                    }
+                    ByteStreams.copy(in, out);
+                    logger.info("Copied resource: " + resourceFile + " to " + outFile.toString());
+                } catch (IOException e) {
+                    logger.severe("Failed to copy resource: " + resourceFile);
+                    throw e;
                 }
-
-                byte[] buffer = new byte[1024];
-                int bytesRead;
-                while ((bytesRead = inputStream.read(buffer)) != -1) {
-                    outputStream.write(buffer, 0, bytesRead);
-                }
-                logger.info("Default config file copied to: " + configFile.getAbsolutePath());
-            } catch (IOException e) {
-                logger.severe("Failed to copy default config file: " + e.getMessage());
-                throw e;
             }
         }
+    }
 
-        try {
-            return YamlConfiguration.getProvider(YamlConfiguration.class).load(configFile);
+    private Map<String, Object> loadConfig() throws IOException {
+        Path configFilePath = dataDirectory.resolve("config.yml");
+
+        try (InputStream inputStream = Files.newInputStream(configFilePath)) {
+            Yaml yaml = new Yaml(new Constructor(Map.class));
+            return yaml.load(inputStream);
         } catch (IOException e) {
             logger.severe("Failed to load config file: " + e.getMessage());
             throw e;
@@ -67,6 +72,6 @@ public class ConfigManager {
     }
 
     public String getOfflineServer() {
-        return config.getString("offlineServer", "main");
+        return (String) config.getOrDefault("offlineServer", "main");
     }
 }
