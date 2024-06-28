@@ -13,3 +13,6 @@ disabledCommands:
 disabledCommandsServers:
   - main
   - lobby
+
+#对于在线玩家是否使用离线UUID
+useOfflineUUID: true

@@ -36,5 +36,6 @@ public class PlayerInfo {
     public boolean getbBdrock() {
         return bedrock;
     }
-    // Getters and Setters
+
+    public boolean getException() {return exception;}
 }

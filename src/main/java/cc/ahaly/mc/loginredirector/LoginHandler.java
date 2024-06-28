@@ -6,21 +6,20 @@ import cc.ahaly.mc.loginredirector.util.PlayerInfoManager;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.velocitypowered.api.event.Subscribe;
-import com.velocitypowered.api.event.connection.DisconnectEvent;
 import com.velocitypowered.api.event.connection.LoginEvent;
 import com.velocitypowered.api.event.connection.PreLoginEvent;
 import com.velocitypowered.api.event.player.KickedFromServerEvent;
 import com.velocitypowered.api.proxy.Player;
 import com.velocitypowered.api.proxy.ProxyServer;
 import com.velocitypowered.api.proxy.ServerConnection;
-import com.velocitypowered.api.proxy.server.RegisteredServer;
 import net.kyori.adventure.text.Component;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
-import org.geysermc.geyser.api.GeyserApi;
+import org.geysermc.floodgate.api.FloodgateApi;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.Objects;
 import java.util.Optional;
@@ -48,7 +47,6 @@ public class LoginHandler {
 
         OfflineServername = configManager.getOfflineServer();
     }
-
     @Subscribe
     public void onPreLogin(PreLoginEvent event) {
         logger.info("处理玩家首次建立链接事件, event: " + event.toString());
@@ -57,24 +55,22 @@ public class LoginHandler {
         UUID uuid = event.getUniqueId();
 
         boolean isExists = playerInfoManager.isPlayerExists(name, uuid);
-        boolean isVerifyLocal = playerInfoManager.verifyPlayer(name, uuid);
+        boolean isVerifyLocal = playerInfoManager.verifyPlayer(name, uuid);;
 
+        if (isExists) {
+            //如果存在判断该玩家是否是例外玩家例如BE端的exception是否为真
+            Optional<PlayerInfo> playerInfoOptional = playerInfoManager.getPlayerByName(name);
+            if (playerInfoOptional.isPresent()) {
+                PlayerInfo playerInfo = playerInfoOptional.get();
+                // 检查玩家的 exception 字段
+                if (playerInfo.getException()) {
+                    return;
+                }
+            }
+        }
 
         boolean isVerifiedMojang = false;
         if (uuid != null) {
-            // 检查玩家是否通过 Geyser 连接
-            if (GeyserApi.api().isBedrockPlayer(uuid)) {
-                if (isExists) {
-                    if (!isVerifyLocal) {
-                        denyReason = "你的身份未通过本地认证，可能和此服务器上的用户冲突了，请尝试更换用户名或将该异常报告给管理员.";
-                        return;
-                    }
-                }
-                logger.info("Player " + name + " " + uuid + " joined through Geyser (Bedrock Edition).");
-                playerInfoManager.addPlayer(new PlayerInfo(new Date(), uuid, name, false, false, true));
-                isPremium = true;
-                return;
-            }
             isVerifiedMojang = verifyWithMojang(uuid, name);
         }else {
             denyReason = "获取不到UUID，拒绝登录.";
@@ -107,6 +103,11 @@ public class LoginHandler {
         playerInfoManager.addPlayer(new PlayerInfo(new Date(), uuid, name, true, false, false));
         event.setResult(PreLoginEvent.PreLoginComponentResult.forceOnlineMode());
         isPremium = true;
+        // 根据配置决定是否使用离线UUID
+        if (configManager.useOfflineUUID()) {
+            uuid = UUID.nameUUIDFromBytes(("OfflinePlayer:" + name).getBytes(StandardCharsets.UTF_8));
+
+        }
     }
 
     private void handleUnverifiedMojang(PreLoginEvent event, boolean isExists, boolean isVerifyLocal, UUID uuid, String name) {
@@ -124,20 +125,36 @@ public class LoginHandler {
     @Subscribe
     public void onLogin(LoginEvent event) {
         Player player = event.getPlayer();
+        String name = player.getUsername();
+        UUID uuid = player.getUniqueId();
 
-        logger.info("处理玩家登入事件,event.toString:" + event);
+        if (playerInfoManager.isPlayerExists(name, uuid)) {
+            if (!playerInfoManager.verifyPlayer(name, uuid)) {
+                denyReason = "2你的身份未通过本地认证，可能和此服务器上的用户冲突了，请尝试更换用户名或将该异常报告给管理员.";
+                return;
+            }
+        }
+
+        //打印调试信息
+        logger.info("处理玩家登入事件,event:" + event + "player.getUsername:" + name + "player.getUniqueId:" + uuid);
         if (denyReason != null) {
             player.disconnect(Component.text(denyReason));
             denyReason = null;
             return;
         }
 
+        // 检查玩家是否通过 Geyser 连接
+        if (FloodgateApi.getInstance().isFloodgatePlayer(uuid)) {
+            logger.info("Player " + name + " " + uuid + " joined through Geyser (Bedrock Edition).");
+            playerInfoManager.addPlayer(new PlayerInfo(new Date(), uuid, name, false, false, true));
+            return;
+        }
+
         // 检查玩家是否通过在线模式登录
         if (isPremium) {
-            logger.info("Player " + player.getUsername() + " is online or ExemptIPs mode, redirecting to login server.");
-//            player.createConnectionRequest(server.getServer("login").get()).fireAndForget();
+            logger.info("Player " + player.getUsername() + uuid + " is online or ExemptIPs mode, redirecting to default server.");
         } else {
-            logger.info("Player " + player.getUsername() + " is offline mode, redirecting to main server.");
+            logger.info("Player " + player.getUsername() + uuid + " is offline mode, redirecting to main server.");
             player.createConnectionRequest(server.getServer(OfflineServername).get()).fireAndForget();
         }
     }

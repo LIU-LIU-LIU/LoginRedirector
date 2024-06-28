@@ -11,6 +11,7 @@ import java.lang.reflect.Type;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public class PlayerInfoManager {
@@ -109,5 +110,11 @@ public class PlayerInfoManager {
         // 两次匹配都成功，验证通过
         System.out.println("Player " + name + " with UUID " + uuid + " is verified.");
         return true;
+    }
+    // 添加方法来通过名称检索玩家并检查异常状态
+    public Optional<PlayerInfo> getPlayerByName(String name) {
+        return players.stream()
+                .filter(player -> player.getName().equals(name))
+                .findFirst();
     }
 }

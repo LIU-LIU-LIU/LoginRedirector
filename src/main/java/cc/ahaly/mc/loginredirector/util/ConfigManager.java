@@ -22,6 +22,7 @@ public class ConfigManager {
     private static Map<String, Object> config;
     private List<String> disabledCommands;
     private List<String> disabledCommandsServers;
+    private boolean useOfflineUUID;
 
     public ConfigManager(@DataDirectory Path dataDirectory, Logger logger) {
         this.dataDirectory = dataDirectory;
@@ -32,6 +33,7 @@ public class ConfigManager {
             this.config = loadConfig();
             this.disabledCommands = loadDisabledCommands();
             this.disabledCommandsServers = loadDisabledCommandsServers();
+            this.useOfflineUUID = (boolean) config.getOrDefault("useOfflineUUID", false);
         } catch (IOException e) {
             logger.log(Level.SEVERE, "Failed to initialize ConfigManager", e);
         }
@@ -119,5 +121,9 @@ public class ConfigManager {
 
     public List<String> getDisabledCommandsServers() {
         return disabledCommandsServers;
+    }
+
+    public boolean useOfflineUUID() {
+        return useOfflineUUID;
     }
 }
