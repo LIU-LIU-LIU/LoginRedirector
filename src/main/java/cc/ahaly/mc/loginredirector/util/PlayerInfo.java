@@ -29,5 +29,12 @@ public class PlayerInfo {
         return uuid;
     }
 
+    public boolean getPremium() {
+        return premium;
+    }
+
+    public boolean getbBdrock() {
+        return bedrock;
+    }
     // Getters and Setters
 }

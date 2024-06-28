@@ -2,13 +2,7 @@
 #离线玩家需要进入的服务器名
 offlineServer: main
 
-# 在线玩家需要进入的服务器名
-onlineServer: login
-
-#豁免IP列表，例如Geyser的IP
-exemptIPs:
-  - 127.0.0.1
-  - 192.168.1.1
+# 在线玩家不做处理默认进入velocity中的默认服务器
 
 # 需要禁用的命令列表
 disabledCommands:

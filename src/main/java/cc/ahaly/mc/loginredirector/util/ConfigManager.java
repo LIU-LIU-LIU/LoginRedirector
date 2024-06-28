@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.*;
+import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -18,7 +19,9 @@ public class ConfigManager {
 
     private final Path dataDirectory;
     private final Logger logger;
-    private Map<String, Object> config;
+    private static Map<String, Object> config;
+    private List<String> disabledCommands;
+    private List<String> disabledCommandsServers;
 
     public ConfigManager(@DataDirectory Path dataDirectory, Logger logger) {
         this.dataDirectory = dataDirectory;
@@ -27,6 +30,8 @@ public class ConfigManager {
         try {
             copyDefaultResources();
             this.config = loadConfig();
+            this.disabledCommands = loadDisabledCommands();
+            this.disabledCommandsServers = loadDisabledCommandsServers();
         } catch (IOException e) {
             logger.log(Level.SEVERE, "Failed to initialize ConfigManager", e);
         }
@@ -71,7 +76,48 @@ public class ConfigManager {
         }
     }
 
+    @SuppressWarnings("unchecked")
+    private List<String> loadExemptIPs() {
+        Object exemptIPsObj = config.get("exemptIPs");
+        if (exemptIPsObj instanceof List) {
+            return (List<String>) exemptIPsObj;
+        } else {
+            logger.warning("exemptIPs is not a list or is missing in the config file");
+            return List.of();
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<String> loadDisabledCommands() {
+        Object disabledCommandsObj = config.get("disabledCommands");
+        if (disabledCommandsObj instanceof List) {
+            return (List<String>) disabledCommandsObj;
+        } else {
+            logger.warning("disabledCommands is not a list or is missing in the config file");
+            return List.of();
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<String> loadDisabledCommandsServers() {
+        Object disabledCommandsServersObj = config.get("disabledCommandsServers");
+        if (disabledCommandsServersObj instanceof List) {
+            return (List<String>) disabledCommandsServersObj;
+        } else {
+            logger.warning("disabledCommandsServers is not a list or is missing in the config file");
+            return List.of();
+        }
+    }
+
     public String getOfflineServer() {
         return (String) config.getOrDefault("offlineServer", "main");
+    }
+
+    public List<String> getDisabledCommands() {
+        return disabledCommands;
+    }
+
+    public List<String> getDisabledCommandsServers() {
+        return disabledCommandsServers;
     }
 }
