@@ -66,32 +66,19 @@ public class LoginHandler {
                 }
             }
 
-            //BE玩家此处事件不会传达正确ID，JE只有此处才会传达正确ID所以JE要在这里走本机验证
-            boolean isVerifyLocal = playerInfoManager.verifyPlayer(name, uuid);
-            //打印调试信息
-            logger.info("玩家存在，信息: 名字 id 本地验证" + name + " " + uuid + " " + isVerifyLocal);
-
-            if (isVerifyLocal) {
-                //本地身份验证通过，然后通过本地pre字段设置玩家状态
-                if (playerInfoOptional.isPresent()) {
-                    PlayerInfo playerInfo = playerInfoOptional.get();
-                    // 检查玩家的 getPremium 字段
-                    if (playerInfo.getPremium()) {
-                        event.setResult(PreLoginEvent.PreLoginComponentResult.forceOnlineMode());
-                        isPremium = true;
-                    }
-                    if (playerInfo.getbBdrock()) {
-                        event.setResult(PreLoginEvent.PreLoginComponentResult.forceOfflineMode());
-                        isPremium = false;
-                    }
-                }
-            } else {
-                denyReason = "你的身份未通过本地认证，可能和此服务器上的用户冲突了，请尝试更换用户名或将该异常报告给管理员.";
-            }
-
-
-
-
+           //通过本地pre字段设置玩家状态
+           if (playerInfoOptional.isPresent()) {
+               PlayerInfo playerInfo = playerInfoOptional.get();
+               // 检查玩家的 getPremium 字段
+               if (playerInfo.getPremium()) {
+                   event.setResult(PreLoginEvent.PreLoginComponentResult.forceOnlineMode());
+                   isPremium = true;
+               }
+               if (playerInfo.getbBdrock()) {
+                   event.setResult(PreLoginEvent.PreLoginComponentResult.forceOfflineMode());
+                   isPremium = false;
+               }
+           }
         }else{
             boolean isVerifiedMojang = false;
             if (uuid == null) {
@@ -105,17 +92,13 @@ public class LoginHandler {
 
 
             if (uuidRequestFailed && nameRequestFailed){
-                denyReason = "请求mojang服务器异常次数过多，拒绝登录.";
+                denyReason = "请求mojang服务器异常次数过多.";
                 return;
             }
 
             if (isVerifiedMojang) {
                 event.setResult(PreLoginEvent.PreLoginComponentResult.forceOnlineMode());
                 isPremium = true;
-                // 根据配置决定是否使用离线UUID
-                if (configManager.useOfflineUUID()) {
-                    uuid = UUID.nameUUIDFromBytes(("OfflinePlayer:" + name).getBytes(StandardCharsets.UTF_8));
-                }
             } else {
                 event.setResult(PreLoginEvent.PreLoginComponentResult.forceOfflineMode());
                 isPremium = false;
@@ -132,15 +115,19 @@ public class LoginHandler {
         //打印调试信息
         logger.info("处理玩家登入事件,event:" + event + "player.getUsername:" + name + "player.getUniqueId:" + uuid);
 
+
+        boolean isExists = playerInfoManager.isPlayerExists(name, uuid);
+        if (isExists) {
+            //只有JE在线玩家才会在pre事件传达正确的UUID(只有在设置在线登录的时候在login事件中JE在线玩家才会是正确的UUID)，BE和JE离线玩家pre的UUID都不准确，不要使用。
+            //初步链接事件的ID是客户端生成的，登入服务器后的UUID是服务器生成的，所以只有在线玩家才是正确的。
+            if (!playerInfoManager.verifyPlayer(name, uuid)) {
+                player.disconnect(Component.text("你的身份未通过本地认证，可能和此服务器上的用户冲突了，请尝试更换账号或将该异常报告给管理员."));
+                return;
+            }
+        }
+
         // 检查玩家是否通过 Geyser 连接
         if (FloodgateApi.getInstance().isFloodgatePlayer(uuid)) {
-            if (playerInfoManager.isPlayerExists(name, uuid)) {
-                if (!playerInfoManager.verifyPlayer(name, uuid)) {
-                    player.disconnect(Component.text("BE验证:你的身份未通过本地认证，可能和此服务器上的用户冲突了，请尝试更换用户名或将该异常报告给管理员."));
-                    return;
-                }
-            }
-
             logger.info("Player " + name + " " + uuid + " joined through Geyser (Bedrock Edition).");
             playerInfoManager.addPlayer(new PlayerInfo(new Date(), uuid, name, false, false, true));
             return;

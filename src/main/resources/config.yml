@@ -15,4 +15,5 @@ disabledCommandsServers:
   - lobby
 
 #对于在线玩家是否使用离线UUID
+#未完成的功能
 useOfflineUUID: true
