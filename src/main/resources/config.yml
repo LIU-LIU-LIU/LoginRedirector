@@ -14,6 +14,12 @@ disabledCommandsServers:
   - main
   - lobby
 
-#对于在线玩家是否使用离线UUID
 #未完成的功能
+#对于在线玩家是否使用离线UUID
 useOfflineUUID: true
+
+#关闭本地验证
+disableLocalAuth: false
+
+#本机验证缓存时间
+localAuthCacheTime: 300

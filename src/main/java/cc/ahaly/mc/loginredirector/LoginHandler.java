@@ -19,7 +19,6 @@ import okhttp3.Response;
 import org.geysermc.floodgate.api.FloodgateApi;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.Objects;
 import java.util.Optional;
