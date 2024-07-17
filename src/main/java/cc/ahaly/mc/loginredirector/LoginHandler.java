@@ -24,6 +24,8 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.logging.Logger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class LoginHandler {
 
@@ -145,6 +147,7 @@ public class LoginHandler {
         } else {
             logger.info("Player " + player.getUsername() + uuid + " is offline mode, redirecting to main server.");
             //重定向到认证服务器
+
             player.createConnectionRequest(server.getServer(OfflineServername).get()).fireAndForget();
             playerInfoManager.addPlayer(new PlayerInfo(new Date(), uuid, name, false, true, false));
         }
@@ -222,15 +225,28 @@ public class LoginHandler {
         Player player = event.getPlayer();
 
         Optional<ServerConnection> currentServer = player.getCurrentServer();
-        logger.info("Player " + player.getUsername() + " disconnected from server " + currentServer.get().getServerInfo().getName());
         if (currentServer.isPresent()) {
+            logger.info("Player " + player.getUsername() + " disconnected from server " + currentServer.get().getServerInfo().getName());
             String serverName = currentServer.get().getServerInfo().getName();
 
             // 检查玩家是否从 main 服务器断开连接
             if (serverName.equals(OfflineServername)) {
-                //断开链接
-                player.disconnect(Component.text("在认证服务器失去连接时无法重定向到备用服务器，所以断开链接。"));
+                String kickReason = parseKickReason(event.getServerKickReason().toString());
+                player.disconnect(Component.text("在认证服务器失去连接时无法重定向到备用服务器，所以断开链接。断开原因: " + kickReason));
             }
         }
+    }
+    public String parseKickReason(String rawMessage) {
+        // 匹配形如 "content='...'" 的文本内容
+        Pattern pattern = Pattern.compile("content='(.*?)'");
+        Matcher matcher = pattern.matcher(rawMessage);
+        StringBuilder parsedMessage = new StringBuilder();
+        while (matcher.find()) {
+            if (parsedMessage.length() > 0) {
+                parsedMessage.append(" ");
+            }
+            parsedMessage.append(matcher.group(1));
+        }
+        return parsedMessage.toString();
     }
 }
