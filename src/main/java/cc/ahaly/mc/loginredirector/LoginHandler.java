@@ -6,13 +6,16 @@ import cc.ahaly.mc.loginredirector.util.PlayerInfoManager;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.velocitypowered.api.event.Subscribe;
+import com.velocitypowered.api.event.connection.DisconnectEvent;
 import com.velocitypowered.api.event.connection.LoginEvent;
 import com.velocitypowered.api.event.connection.PreLoginEvent;
 import com.velocitypowered.api.event.player.KickedFromServerEvent;
 import com.velocitypowered.api.proxy.Player;
 import com.velocitypowered.api.proxy.ProxyServer;
 import com.velocitypowered.api.proxy.ServerConnection;
+import com.velocitypowered.api.proxy.server.RegisteredServer;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
@@ -24,30 +27,27 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.logging.Logger;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 public class LoginHandler {
 
     private final ProxyServer server;
     private final Logger logger;
-    private final ConfigManager configManager;
     private final PlayerInfoManager playerInfoManager;
     private final OkHttpClient httpClient = new OkHttpClient();
     private boolean isPremium = false;
     private boolean uuidRequestFailed;
     private boolean nameRequestFailed;
     private String denyReason = null; // 用于存储拒绝的原因
-    private  String OfflineServername;
+    private final String OfflineServername;
 
     public LoginHandler(ProxyServer server, Logger logger, ConfigManager configManager, PlayerInfoManager playerInfoManager) {
         this.server = server;
         this.logger = logger;
-        this.configManager = configManager;
         this.playerInfoManager = playerInfoManager;
 
         OfflineServername = configManager.getOfflineServer();
     }
+
     @Subscribe
     public void onPreLogin(PreLoginEvent event) {
         logger.info("处理玩家首次建立链接事件, event: " + event.toString());
@@ -142,13 +142,25 @@ public class LoginHandler {
 
         // 检查玩家是否通过在线模式登录
         if (isPremium) {
-            logger.info("Player " + player.getUsername() + uuid + " is online or ExemptIPs mode, redirecting to default server.");
+            logger.info("Player " + player.getUsername() + uuid + " 是在线玩家，前往默认服务器.");
             playerInfoManager.addPlayer(new PlayerInfo(new Date(), uuid, name, true, false, false));
         } else {
-            logger.info("Player " + player.getUsername() + uuid + " is offline mode, redirecting to main server.");
+            logger.info("Player " + player.getUsername() + uuid + " 是离线玩家，重定向到认证服务器。");
             //重定向到认证服务器
-
-            player.createConnectionRequest(server.getServer(OfflineServername).get()).fireAndForget();
+            Optional<RegisteredServer> optionalServer = server.getServer(OfflineServername);
+            if (optionalServer.isPresent()) {
+                RegisteredServer targetServer = optionalServer.get();
+                logger.info("Attempting to redirect player " + player.getUsername() + " to server " + targetServer.getServerInfo().getName());
+                player.createConnectionRequest(targetServer).connectWithIndication().thenAccept(result -> {
+                    if (!result) {
+                        logger.warning("Player " + player.getUsername() + " failed to connect to " + targetServer.getServerInfo().getName());
+                        player.disconnect(Component.text("无法连接到认证服务器:"));
+                    }
+                });
+            } else {
+                logger.warning("无法找到服务器：" + OfflineServername);
+                player.disconnect(Component.text("服务器配置错误，请联系管理员。"));
+            }
             playerInfoManager.addPlayer(new PlayerInfo(new Date(), uuid, name, false, true, false));
         }
     }
@@ -229,24 +241,25 @@ public class LoginHandler {
             logger.info("Player " + player.getUsername() + " disconnected from server " + currentServer.get().getServerInfo().getName());
             String serverName = currentServer.get().getServerInfo().getName();
 
-            // 检查玩家是否从 main 服务器断开连接
+            // 检查玩家是否从 认证 服务器断开连接
             if (serverName.equals(OfflineServername)) {
-                String kickReason = parseKickReason(event.getServerKickReason().toString());
-                player.disconnect(Component.text("在认证服务器失去连接时无法重定向到备用服务器，所以断开链接。断开原因: " + kickReason));
+                player.disconnect(Component.text("在认证服务器失去连接时无法重定向到备用服务器，所以断开链接。断开原因: " + PlainTextComponentSerializer.plainText().serialize(event.getServerKickReason().orElse(Component.text("未知原因")))));
             }
         }
     }
-    public String parseKickReason(String rawMessage) {
-        // 匹配形如 "content='...'" 的文本内容
-        Pattern pattern = Pattern.compile("content='(.*?)'");
-        Matcher matcher = pattern.matcher(rawMessage);
-        StringBuilder parsedMessage = new StringBuilder();
-        while (matcher.find()) {
-            if (parsedMessage.length() > 0) {
-                parsedMessage.append(" ");
+
+    @Subscribe
+    public void onDisconnect(DisconnectEvent event) {
+        Player player = event.getPlayer();
+        Optional<ServerConnection> currentServer = player.getCurrentServer();
+        if (currentServer.isPresent()) {
+            String serverName = currentServer.get().getServerInfo().getName();
+            logger.info("Player " + player.getUsername() + " disconnected from server " + serverName);
+
+            // 检查玩家是否从 认证 服务器断开连接
+            if (serverName.equals(OfflineServername)) {
+                player.disconnect(Component.text("在认证服务器失去连接时无法重定向到备用服务器，所以断开链接。" ));
             }
-            parsedMessage.append(matcher.group(1));
         }
-        return parsedMessage.toString();
     }
 }
