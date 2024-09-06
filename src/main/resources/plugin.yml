@@ -1,0 +1,5 @@
+name: LoginRedirector
+version: '${project.version}'
+main: cc.ahaly.mc.loginredirector.bukkit.BukkitMain
+api-version: '1.21'
+author: AHA

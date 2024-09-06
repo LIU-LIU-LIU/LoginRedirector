@@ -1,10 +1,9 @@
-package cc.ahaly.mc.loginredirector;
+package cc.ahaly.mc.loginredirector.velocity;
 
 import cc.ahaly.mc.loginredirector.util.ConfigManager;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.command.CommandExecuteEvent;
 import com.velocitypowered.api.proxy.Player;
-import com.velocitypowered.api.proxy.ProxyServer;
 import net.kyori.adventure.text.Component;
 import org.slf4j.LoggerFactory;
 

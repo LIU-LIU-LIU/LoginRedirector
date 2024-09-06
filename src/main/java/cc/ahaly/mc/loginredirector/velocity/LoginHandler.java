@@ -1,4 +1,4 @@
-package cc.ahaly.mc.loginredirector;
+package cc.ahaly.mc.loginredirector.velocity;
 
 import cc.ahaly.mc.loginredirector.util.ConfigManager;
 import cc.ahaly.mc.loginredirector.util.PlayerInfo;
@@ -83,20 +83,18 @@ public class LoginHandler {
         }else{
             boolean isVerifiedMojang = false;
             if (uuid == null) {
-                denyReason = "获取不到UUID，拒绝登录.";
+                //获取不到uuid默认为离线玩家去处理,一般只有在线玩家会在预处理阶段传uuid，离线玩家可能不会传，需要服务器生成。
+                event.setResult(PreLoginEvent.PreLoginComponentResult.forceOfflineMode());
+                isPremium = false;
                 return;
             }
-
             isVerifiedMojang = verifyWithMojang(uuid, name);
             //打印调试信息
             logger.info("玩家不存在，信息: 名字 id 在线验证" + name + " " + uuid + " "  + isVerifiedMojang);
-
-
             if (uuidRequestFailed && nameRequestFailed){
                 denyReason = "请求mojang服务器异常次数过多.";
                 return;
             }
-
             if (isVerifiedMojang) {
                 event.setResult(PreLoginEvent.PreLoginComponentResult.forceOnlineMode());
                 isPremium = true;
@@ -116,6 +114,10 @@ public class LoginHandler {
         //打印调试信息
         logger.info("处理玩家登入事件,event:" + event + "player.getUsername:" + name + "player.getUniqueId:" + uuid);
 
+        if (uuid == null) {
+            denyReason = "获取不到UUID，拒绝登录.";
+            return;
+        }
 
         boolean isExists = playerInfoManager.isPlayerExists(name, uuid);
         if (isExists) {

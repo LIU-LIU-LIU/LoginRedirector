@@ -1,4 +1,4 @@
-package cc.ahaly.mc.loginredirector;
+package cc.ahaly.mc.loginredirector.velocity;
 
 import cc.ahaly.mc.loginredirector.util.ConfigManager;
 import cc.ahaly.mc.loginredirector.util.PlayerInfoManager;
