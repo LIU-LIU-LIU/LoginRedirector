@@ -10,3 +10,7 @@
 
 ## 使用方法:
 下载jar文件放置velocity的plugins文件夹中，重启服务器释放插件目录，包括config.yml和player.json文件，根据注释需求修改config.yml
+
+## 未来更新
+设置本地缓存过期时间
+本地缓存文件按行存储玩家信息
